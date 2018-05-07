@@ -20,7 +20,7 @@ public class Ticket {
 		}
 		return null;
 	}
-public void printBytes(String printerName, byte[] bytes) {
+	public void printBytes(String printerName, byte[] bytes) {
 		
 		DocFlavor flavor = DocFlavor.BYTE_ARRAY.AUTOSENSE;
 		PrintRequestAttributeSet pras = new HashPrintRequestAttributeSet();

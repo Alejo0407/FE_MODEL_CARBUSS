@@ -18,10 +18,8 @@ import com.pe.amd.modelo.app.out.Compresor;
 import com.pe.amd.modelo.app.out.Escritor;
 import com.pe.amd.modelo.app.out.Mensajero;
 import com.pe.amd.modelo.app.out.URLSunat;
-import com.pe.amd.modelo.app.out.XMLBoleta;
-import com.pe.amd.modelo.app.out.XMLFactura;
-import com.pe.amd.modelo.app.out.XMLResumenBaja;
-import com.pe.amd.modelo.app.out.XMLResumenDiario;
+import com.pe.amd.modelo.app.xml.XMLFactory;
+import com.pe.amd.modelo.app.xml.XMLDocument;
 import com.pe.amd.modelo.beans.BeanManager;
 import com.pe.amd.modelo.beans.Cabdocumentos;
 import com.pe.amd.modelo.beans.Contingencia;
@@ -116,6 +114,7 @@ class Generador {
 		}
 		return info;
 	}
+	
 	/**
 	 * 
 	 * @param fecha
@@ -125,10 +124,13 @@ class Generador {
 	 * @throws ParserConfigurationException
 	 * @throws TransformerException
 	 */
-	public void generarFacturas(String fecha) throws NullPointerException, SQLException,
+	public boolean generarFacturas(String fecha) throws NullPointerException, SQLException,
 			IOException, ParserConfigurationException, TransformerException {
 		if(fecha == null)
 			throw new NullPointerException("Error en la fecha... null");
+		
+		//Si no hubo excepcion en produccion es true, si no es false
+		boolean retorno = true; 
 		List<Cabdocumentos> cabecera = consulta.getDocumentos(fecha,BeanManager.COD_FACTURA,false);
 		Empresa empresa = consulta.getEmpresa();
 		Correlacion cor = consulta.getCorrelacion(BeanManager.COD_FACTURA);
@@ -137,16 +139,22 @@ class Generador {
 			if(cabecera.size() != 0) {
 				String nombre;
 				List<Detdocumentos> det;
-				XMLFactura xml;
+				XMLDocument xml;
 				Lector in = new Lector((String)null);
+				
 				System.out.println("Generando...");
+				
 				for(Cabdocumentos cab:cabecera) {
 					cor.aumentarCorrelacion();
-					
 					nombre = empresa.getRuc()+ "-01-F" +  cor.getSerie() + "-" + String.valueOf(cor.getCorrelativo());
 					det = consulta.getDetalle(cab.getTransaccion());
-					xml = new XMLFactura(cab,det,empresa);
-					File archivo = xml.generarDocumento(nombre, cor.getSerie(), String.valueOf(cor.getCorrelativo()));
+					
+					xml = XMLFactory.getXMLFacturaBoleta(cab,det,empresa,
+							nombre, cor.getSerie(), String.valueOf(cor.getCorrelativo()),
+							BeanManager.COD_FACTURA);
+					
+					File archivo = xml.generarDocumento();
+					
 					
 					//Aqui se da el envio de documentos para el caso de las facturas
 					Compresor comp = new Compresor();
@@ -156,16 +164,17 @@ class Generador {
 					File respuesta = null; //CONTENDRA EL XML QUE DEFINE LA RESPUESTA DE LA SUNAT AL ENVIO DE DOCUMENTOS
 					int ans = 0;//sin enviar a sunat
 					int counter = 10;
+					
 					while(counter != 0) {
 						try {
 							respuesta = msj.enviar(empresa.getRuc(), 
 									empresa.getUsrSecundario(), empresa.getPass());
 							in = new Lector(respuesta);
 							ans = in.decodeRespuesta(nombre);//Primer Filtro
-							if(ans == -1 ) {//Error en Produccion
+							if(ans == -1 ) //Error en Produccion
 								cor.disminuirCorrelacion();
-							}
-							break;
+							counter = 0;
+							
 						}catch(Exception e) {
 							counter--;
 							//Significa que no se pudo enviar el documento
@@ -202,6 +211,7 @@ class Generador {
 						
 					}
 					else{//Excepcion en produccion
+						retorno = false;
 						l1 = new Lector(archivo);
 						consulta.updateCabecera(
 								null,null, //SERIE - NUMERO
@@ -234,15 +244,17 @@ class Generador {
 				}
 				System.out.println("Fin Generando...");
 			}
-			//return consulta.getDocumentos(fecha, BeanManager.COD_FACTURA, true);
+			
 		}catch(NullPointerException | SQLException e) {
 			throw e;
 		}
-
+		return retorno;
 	}
-	public void generarBoletas(String fecha) throws NullPointerException, SQLException,
+	public boolean generarBoletas(String fecha) throws NullPointerException, SQLException,
 		IOException, ParserConfigurationException, TransformerException{
 		
+		//Si no hubo excepcion en produccion es true, si no es false
+		boolean retorno = true;
 		List<Cabdocumentos> cabecera = consulta.getDocumentos(fecha,BeanManager.COD_BOLETA,false);
 		Empresa empresa = consulta.getEmpresa();
 		Correlacion cor = consulta.getCorrelacion(BeanManager.COD_BOLETA);
@@ -251,7 +263,7 @@ class Generador {
 			if(cabecera.size() != 0) {
 				String nombre;
 				List<Detdocumentos> det;
-				XMLBoleta xml;
+				XMLDocument xml;
 				Lector in = new Lector((String)null);
 				boolean actualizar_correlacion = true;
 				
@@ -261,8 +273,12 @@ class Generador {
 					
 					nombre = empresa.getRuc()+ "-03-B" +  cor.getSerie() + "-" + String.valueOf(cor.getCorrelativo());
 					det = consulta.getDetalle(cab.getTransaccion());
-					xml = new XMLBoleta(cab,det,empresa);
-					File archivo = xml.generarDocumento(nombre, cor.getSerie(), String.valueOf(cor.getCorrelativo()));
+					
+					xml = XMLFactory.getXMLFacturaBoleta(cab,det,empresa,
+							nombre, cor.getSerie(), String.valueOf(cor.getCorrelativo()),
+							BeanManager.COD_BOLETA);
+					
+					File archivo = xml.generarDocumento();
 					
 					//Aqui se da el envio de documentos para el caso de las facturas
 					Compresor comp = new Compresor();
@@ -325,6 +341,8 @@ class Generador {
 						respuesta1 = "Correcto";
 					}
 					else{//Excepcion en produccion
+						
+						retorno = false;
 						l1 = new Lector(archivo);
 						consulta.updateCabecera(
 								null,null, //SERIE - NUMERO
@@ -357,6 +375,7 @@ class Generador {
 			consulta.getConnection().rollback();
 			throw e;
 		}
+		return retorno;
 	}
 	
 	/**
@@ -380,7 +399,6 @@ class Generador {
 		try {
 			List <Cabdocumentos> boletas = consulta.getDocumentos(fecha, BeanManager.COD_BOLETA, true,true);
 			Empresa empresa = consulta.getEmpresa();
-			XMLResumenDiario resumen = new XMLResumenDiario(boletas,empresa);
 			
 			GregorianCalendar date = new GregorianCalendar();
 			String anio = String.format("%04d", date.get(GregorianCalendar.YEAR)),
@@ -389,7 +407,11 @@ class Generador {
 			
 			String correlativo = consulta.getCorrelacionResumen(anio+mes+dia,BeanManager.COD_RESUMEN_DIARIO);
 			String nombre = empresa.getRuc() + "-RC-"+anio+mes+dia+"-"+correlativo;
-			File res = resumen.generarDocumento(nombre, correlativo, 0);
+
+			
+			XMLDocument resumen = XMLFactory.getXMLResumenDiario(boletas, empresa,
+					nombre, correlativo, 0);
+			File res = resumen.generarDocumento();
 			
 			Compresor comp = new Compresor();
 			comp.comprimir(res.getName(), nombre);
@@ -470,7 +492,7 @@ class Generador {
 	public Object[] generarResumenBajas(List<Cabdocumentos> datos,List<String> razones) throws Exception{
 		try {
 			Empresa empresa = consulta.getEmpresa();
-			XMLResumenBaja resumen = new XMLResumenBaja(datos,empresa, razones);
+			
 			
 			GregorianCalendar date = new GregorianCalendar();
 			String anio = String.format("%04d", date.get(GregorianCalendar.YEAR)),
@@ -479,7 +501,10 @@ class Generador {
 			
 			String correlativo = consulta.getCorrelacionResumen(anio+mes+dia,BeanManager.COD_RESUMEN_BAJA);
 			String nombre = empresa.getRuc() + "-RA-"+anio+mes+dia+"-"+correlativo;
-			File res = resumen.generarDocumento(nombre, correlativo);
+			
+			XMLDocument resumen = XMLFactory.getXMLResumenBajas(datos,empresa, 
+					razones, nombre, correlativo);
+			File res = resumen.generarDocumento();
 			
 			Compresor comp = new Compresor();
 			comp.comprimir(res.getName(), nombre);

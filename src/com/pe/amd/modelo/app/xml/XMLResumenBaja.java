@@ -1,4 +1,4 @@
-package com.pe.amd.modelo.app.out;
+package com.pe.amd.modelo.app.xml;
 
 import java.io.File;
 import java.util.GregorianCalendar;
@@ -13,20 +13,26 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
-import com.pe.amd.modelo.app.out.signature.Firmador;
+import com.pe.amd.modelo.app.out.Escritor;
 import com.pe.amd.modelo.beans.Cabdocumentos;
 import com.pe.amd.modelo.beans.Empresa;
 
-public class XMLResumenBaja {
+class XMLResumenBaja implements XMLDocument{
 	private List<Cabdocumentos> documentos;
 	private Empresa empresa;
 	private List<String> razones;
+	private String filename,correlacion;
 	
-	public XMLResumenBaja(List<Cabdocumentos> documentos, Empresa empresa,List<String> razones) {
+	public XMLResumenBaja(List<Cabdocumentos> documentos, Empresa empresa,List<String> razones,
+			String filename,String correlacion) {
 		super();
 		this.setDocumentos(documentos);
 		this.setEmpresa(empresa);
 		this.setRazones(razones);
+		this.filename = filename;
+		this.correlacion = correlacion;
+		
+		
 		if(getDocumentos().size() == 0)
 			throw new IllegalArgumentException("Para generar el resumen se debe te tener al menos "
 					+ "un documento");
@@ -35,7 +41,7 @@ public class XMLResumenBaja {
 					+ " de razones y de documentos");
 	}
 	
-	public File generarDocumento(String filename,String correlacion) throws ParserConfigurationException, TransformerException {
+	public File generarDocumento() throws ParserConfigurationException, TransformerException {
 		DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
 		DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
 		
@@ -70,7 +76,7 @@ public class XMLResumenBaja {
 		
 		//IDENTIFICADOR DEL RESUMEN
 		Element id = doc.createElement("cbc:ID");
-		id.appendChild(doc.createTextNode("RA-"+anio+mes+dia+"-"+correlacion));
+		id.appendChild(doc.createTextNode("RA-"+anio+mes+dia+"-"+this.correlacion));
 		root.appendChild(id);
 		
 		//FECHA EMISION DOCUEMTNOS
@@ -98,15 +104,16 @@ public class XMLResumenBaja {
 		ublext_firma.appendChild(ublext_cont);
 		ublextns.appendChild(ublext_firma);
 				
-		new Escritor().escribirXML(filename, "", doc);
+		new Escritor().escribirXML(this.filename, "", doc);
 			
 		try {
-			doc = Firmador.sign(new File(filename), empresa.getCe().getBinaryStream(), empresa.getPin(), empresa.getAlias());
+			doc = Firmador.sign(new File(this.filename), empresa.getCe().getBinaryStream()
+					, empresa.getPin(), empresa.getAlias());
 		}catch(Exception e) {
 			throw new NullPointerException("Error en la Firma DIGITAL: "
 						+ e.getMessage());
 		}
-		return new Escritor().escribirXML(filename, "", doc);
+		return new Escritor().escribirXML(this.filename, "", doc);
 	}
 	private Node generarLinea(Document doc, Cabdocumentos documento, int i,String razon) {
 		Element line = doc.createElement("sac:VoidedDocumentsLine");

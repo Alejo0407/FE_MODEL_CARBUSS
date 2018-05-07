@@ -1,4 +1,4 @@
-package com.pe.amd.modelo.app.out;
+package com.pe.amd.modelo.app.xml;
 
 import java.io.File;
 import java.util.GregorianCalendar;
@@ -13,23 +13,33 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
-import com.pe.amd.modelo.app.out.signature.Firmador;
+import com.pe.amd.modelo.app.out.Escritor;
 import com.pe.amd.modelo.beans.Cabdocumentos;
 import com.pe.amd.modelo.beans.Empresa;
 
-public class XMLResumenDiario {
-	public XMLResumenDiario(List<Cabdocumentos> boletas, Empresa empresa) {
+class XMLResumenDiario implements XMLDocument {
+	
+
+	private List<Cabdocumentos> boletas;
+	private Empresa empresa;
+	private String filename,correlacion;
+	private int tipo;
+	
+	
+	public XMLResumenDiario(List<Cabdocumentos> boletas, Empresa empresa,
+			String filename,String correlacion, int tipo) {
 		super();
 		this.boletas = boletas;
 		this.empresa = empresa;
+		this.filename = filename;
+		this.correlacion = correlacion;
+		this.tipo = tipo;
 		if(getBoletas().size() == 0)
 			throw new IllegalArgumentException("Para generar el resumen se debe te tener al menos "
 					+ "un documento");
 	}
-	private List<Cabdocumentos> boletas;
-	private Empresa empresa;
 	
-	public File generarDocumento(String filename,String correlacion, int tipo) throws ParserConfigurationException, TransformerException {
+	public File generarDocumento() throws ParserConfigurationException, TransformerException {
 		
 		DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
 		DocumentBuilder docBuilder	=	docFactory.newDocumentBuilder();
@@ -64,7 +74,7 @@ public class XMLResumenDiario {
 		root.getLastChild().appendChild(doc.createTextNode("1.1"));
 		//IDENTIFICADOR DEL RESUMEN
 		Element id = doc.createElement("cbc:ID");
-		id.appendChild(doc.createTextNode("RC-"+anio+mes+dia+"-"+correlacion));
+		id.appendChild(doc.createTextNode("RC-"+anio+mes+dia+"-"+this.correlacion));
 		root.appendChild(id);
 		
 		//FECHA EMISION DOCUEMTNOS
@@ -85,11 +95,11 @@ public class XMLResumenDiario {
 		
 		int k = 1;
 		for(Cabdocumentos documento:this.getBoletas()) {
-			if(tipo == 0) {
+			if(this.tipo == 0) {
 				root.appendChild(this.createBoleta(doc,documento,k));
-			}else if (tipo == 1) {
+			}else if (this.tipo == 1) {
 				root.appendChild(this.createNC(doc,documento,k));
-			}else if (tipo == 2) {
+			}else if (this.tipo == 2) {
 				root.appendChild(this.createND(doc,documento,k));
 			}
 			else
@@ -103,15 +113,16 @@ public class XMLResumenDiario {
 		ublext_firma.appendChild(ublext_cont);
 		ublextns.appendChild(ublext_firma);
 		
-		new Escritor().escribirXML(filename, "", doc);
+		new Escritor().escribirXML(this.filename, "", doc);
 		
 		try {
-			doc = Firmador.sign(new File(filename), empresa.getCe().getBinaryStream(), empresa.getPin(), empresa.getAlias());
+			doc = Firmador.sign(new File(this.filename), empresa.getCe().getBinaryStream(), 
+					empresa.getPin(), empresa.getAlias());
 		}catch(Exception e) {
 			throw new NullPointerException("Error en la Firma DIGITAL: "
 					+ e.getMessage());
 		}
-		return new Escritor().escribirXML(filename, "", doc);
+		return new Escritor().escribirXML(this.filename, "", doc);
 	}
 	private Node createBoleta(Document doc, Cabdocumentos documento, int pos) {
 		Element line = doc.createElement("sac:SummaryDocumentsLine");

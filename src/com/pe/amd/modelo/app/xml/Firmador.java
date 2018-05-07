@@ -1,4 +1,4 @@
-package com.pe.amd.modelo.app.out.signature;
+package com.pe.amd.modelo.app.xml;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -39,7 +39,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-public abstract class Firmador {
+abstract class Firmador {
 	
 	public static Document sign(File in, InputStream cer, String pass, String alias)  throws Exception{
 		XMLSignatureFactory fac = XMLSignatureFactory.getInstance("DOM");

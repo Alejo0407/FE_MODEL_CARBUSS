@@ -143,33 +143,69 @@ public class Programa {
 		}
 		return ret;
 	}
-	public List<Cabdocumentos> generarFacturas(Date fecha_generacion) throws NullPointerException, SQLException, IOException, ParserConfigurationException, TransformerException{
+	/**
+	 * Genera las facturas para un dia determinado
+	 * 
+	 * 
+	 * @param fecha_generacion
+	 * @return Un arreglo de objetos, el primer item es la lista List<Cabdocumentos>, el segundo es un booleano
+	 * 			que indica si hubieron errores en produccion.
+	 * 
+	 * @throws NullPointerException
+	 * @throws SQLException
+	 * @throws IOException
+	 * @throws ParserConfigurationException
+	 * @throws TransformerException
+	 */
+	public Object[] generarFacturas(Date fecha_generacion) throws NullPointerException, SQLException, IOException, ParserConfigurationException, TransformerException{
+		Object[] datos = {null,null};
 		List<Cabdocumentos> documentos = null;
 		try {
-			generador.generarFacturas(this.getDateAsString(fecha_generacion));
+			Boolean b = generador.generarFacturas(this.getDateAsString(fecha_generacion));
 			if(this.isRetorno())
 				documentos = consulta.getDocumentos(this.getDateAsString(fecha_generacion)
 						, BeanManager.COD_FACTURA, true);
+			datos[0] = documentos;
+			datos[1] = b;
+			
 		}catch(NullPointerException | SQLException 	| IOException 
 				| ParserConfigurationException | TransformerException e) {
 			System.err.println("Error en la generacion de Facturas...." + e.getMessage());
 			throw e;
 		}
-		return documentos;
+		
+		return datos;
 	}
-	public List<Cabdocumentos> generarBoletas(Date fecha_generacion) throws NullPointerException, SQLException, IOException, ParserConfigurationException, TransformerException {
+	/**
+	 * Genera las boletas para un dia determinado
+	 * 
+	 * 
+	 * @param fecha_generacion
+	 * @return Un arreglo de objetos, el primer item es la lista List<Cabdocumentos>, el segundo es un booleano
+	 * 			que indica si hubieron errores en produccion.
+	 * 
+	 * @throws NullPointerException
+	 * @throws SQLException
+	 * @throws IOException
+	 * @throws ParserConfigurationException
+	 * @throws TransformerException
+	 */
+	public Object[] generarBoletas(Date fecha_generacion) throws NullPointerException, SQLException, IOException, ParserConfigurationException, TransformerException {
+		Object[] datos = {null,null};
 		List<Cabdocumentos> documentos = null;
 		try {
-			generador.generarBoletas(this.getDateAsString(fecha_generacion));
+			Boolean b = generador.generarBoletas(this.getDateAsString(fecha_generacion));
 			if(this.isRetorno())
 				documentos = consulta.getDocumentos(this.getDateAsString(fecha_generacion)
 						, BeanManager.COD_BOLETA, true);
+			datos[0] = documentos;
+			datos[1] = b;
 		}catch(NullPointerException | SQLException 	| IOException 
 				| ParserConfigurationException | TransformerException e) {
 			System.err.println("Error en la generacion de Boletas...." + e.getMessage());
 			throw e;
 		}
-		return documentos;
+		return datos;
 	}
 	public void generarNotasCredito(Date fecha_generacion) {}
 	
@@ -638,7 +674,6 @@ public class Programa {
 	 */
 	public void anularDocumento(String transaccion) throws SQLException {
 		consulta.anularCabecera(transaccion);
-		
 	}
 	public void anularDocumento(Cabdocumentos doc) throws SQLException {
 		consulta.anularCabecera(doc.getTransaccion());
@@ -655,12 +690,15 @@ public class Programa {
 	}
 	public void updateSistema() throws SQLException {
 		consulta.updateSistema(Programa.sistema);
-	}
-	
+	}	
 	public void close() {
 		try {this.getCsunat().close();} catch(Exception e) {}
 		try {this.getCorigen().close();} catch(Exception e) {}
 	}
+	
+	
+	
+	//SETTER Y GETTER
 	public Connection getCsunat() {
 		return csunat;
 	}
