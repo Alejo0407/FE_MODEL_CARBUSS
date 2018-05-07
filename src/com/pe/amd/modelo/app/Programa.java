@@ -149,7 +149,7 @@ public class Programa {
 	 * 
 	 * @param fecha_generacion
 	 * @return Un arreglo de objetos, el primer item es la lista List<Cabdocumentos>, el segundo es un booleano
-	 * 			que indica si hubieron errores en produccion.
+	 * 			que indica si no hubieron errores en produccion (false -> error).
 	 * 
 	 * @throws NullPointerException
 	 * @throws SQLException
@@ -182,7 +182,7 @@ public class Programa {
 	 * 
 	 * @param fecha_generacion
 	 * @return Un arreglo de objetos, el primer item es la lista List<Cabdocumentos>, el segundo es un booleano
-	 * 			que indica si hubieron errores en produccion.
+	 * 			que indica si no hubieron errores en produccion (false -> error).
 	 * 
 	 * @throws NullPointerException
 	 * @throws SQLException
