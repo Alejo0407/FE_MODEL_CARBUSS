@@ -1,8 +1,10 @@
 package com.pe.amd.modelo.app;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -17,6 +19,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 
 import com.pe.amd.modelo.app.in.Lector;
+import com.pe.amd.modelo.app.out.Compresor;
 import com.pe.amd.modelo.app.out.Mensajero;
 import com.pe.amd.modelo.beans.BeanManager;
 import com.pe.amd.modelo.beans.Cabdocumentos;
@@ -344,7 +347,6 @@ public class Programa {
 	public List<Cabdocumentos> getDocumentos(String[] condiciones,String[] orderBy) throws SQLException{	
 		return consulta.getDocumentos(condiciones,orderBy);
 	}
-	
 	/**
 	 * Devuelve los documentos en un rango determinado,
 	 * si tipo es null se devuelven todos los documentos
@@ -677,6 +679,66 @@ public class Programa {
 	}
 	public void anularDocumento(Cabdocumentos doc) throws SQLException {
 		consulta.anularCabecera(doc.getTransaccion());
+	}
+	/*FUNCIONES DE EMERGENCIA*/
+	public Object[] reenviarDocumento(Cabdocumentos doc) throws IOException,SQLException,NullPointerException {
+		if(doc == null)
+			throw new NullPointerException("El documento es nulo");
+		else if(doc.getArchivo() == null)
+			throw new NullPointerException("El archivo xml nunca fue generado...");
+		
+		try {
+			try(OutputStream os = new FileOutputStream(doc.getNombre_archivo())){
+				os.write(doc.getArchivo().getBytes(1, (int)doc.getArchivo().length()));
+			}
+			File archivo = new File(doc.getNombre_archivo()),respuesta;
+			Empresa empresa = consulta.getEmpresa();
+			Compresor comp = new Compresor();
+			comp.comprimir(archivo.getName(), archivo.getName().replace(".xml", ""));
+			
+			Lector in1;
+			int ans;
+			try {
+				respuesta = new Mensajero(Programa.sistema.getUrlProduccion()
+						,new File(archivo.getName().replace(".xml", ".zip")))
+						.enviar(empresa.getRuc(), 
+						empresa.getUsrSecundario(), empresa.getPass());	
+			}catch(Exception e) {throw new NullPointerException("Error en el envio del documento");}
+			try {
+				in1 = new Lector(respuesta);
+				ans = in1.decodeRespuesta(archivo.getName().replace(".xml", ""));
+			}catch(Exception e) {throw new NullPointerException("Error en la decodificacion de la respuesta");}
+			
+			consulta.updateCabecera(
+					doc.getSerieelec(),doc.getNumeroelec(), //SERIE - NUMERO
+					BeanManager.COD_FACTURA, doc.getTransaccion(),  //FACTURA - TRANSACCION
+					doc.getArchivo().getBinaryStream(), archivo, //XML-FACTURA -> File xml
+					ans, in1.getMensaje(), //Tipo Homologado - Mensaje de sunat
+					in1.getZipAsFileInputStream(),in1.getZip()); // XMl respuesta o zip con el cdr y su file respectivo
+			if(ans == -2) {//rechazado
+				consulta.addCdrRechazo(doc.getSerieelec(),doc.getNumeroelec(),
+						doc.getSerie(),doc.getNumero(),in1.getZipAsFileInputStream(),in1.getZip());
+			}
+			
+			Object[] data = new Object[5];
+			
+			data[0] = ans;
+			data[1] = in1.getMensaje();
+			if(ans != -1) {
+				data[2] = in1.getZipAsByteArray();
+				data[3] = "application/zip";
+				data[4] = in1.getZip().getName();
+			}else {
+				data[2] = in1.getFileAsByteArray();
+				data[3] = "text/xml";
+				data[4] = in1.getFile().getName();
+			}
+			
+			return data;	
+		}
+		catch(IOException | SQLException | NullPointerException e){
+			throw e;
+		}
 	}
 	
 	private String getDateAsString(Date fecha) {

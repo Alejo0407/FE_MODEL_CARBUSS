@@ -540,8 +540,8 @@ public class Consulta {
 		return i;
 	}
 	public int updateCabecera(String serie, String numero, int codFactura, String transaccion,
-			FileInputStream doc_xml, File doc, int homologado, String msj_homologado
-			, FileInputStream resp_file, File resp) throws SQLException {
+			InputStream doc_xml, File doc, int homologado, String msj_homologado
+			, InputStream resp_file, File resp) throws SQLException {
 		// TODO Auto-generated method stub
 		
 		PreparedStatement pst = null;
